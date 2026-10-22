@@ -68,13 +68,19 @@ def test_legacy_csv_still_imports(local_store, text):
     assert (row["name"], row["emails"], row["phones"]) == ("Casey", ["casey@example.test"], ["111"])
 
 
-@pytest.mark.parametrize("name,email", [("Phone", "phone@example.test"), ("Mail", "mail@example.test"), ("Name", "")])
-def test_headerless_csv_name_matching_header_keeps_all_rows(local_store, name, email):
-    text = f"{name},{email},+61 (2) 1234-5678\nCasey,casey@example.test,222\n"
+@pytest.mark.parametrize("name,email,phone", [
+    ("Phone", "phone@example.test", "+61 (2) 1234-5678"),
+    ("Mail", "mail@example.test", "+61 (2) 1234-5678"),
+    ("Name", "", "+61 (2) 1234-5678"),
+    ("Phone", "", "555-0100 ext 42"),
+    ("Mail", "", "555-0100 x42"),
+])
+def test_headerless_csv_name_matching_header_keeps_all_rows(local_store, name, email, phone):
+    text = f"{name},{email},{phone}\nCasey,casey@example.test,222\n"
     assert contacts._import_csv_contacts(text) == {"imported": 2, "failed": 0, "total": 2}
     rows = contacts._load_local_contacts()
     assert [(row["name"], row["emails"], row["phones"]) for row in rows] == [
-        (name, [email] if email else [], ["+61 (2) 1234-5678"]),
+        (name, [email] if email else [], [phone]),
         ("Casey", ["casey@example.test"], ["222"]),
     ]
 

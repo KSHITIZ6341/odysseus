@@ -699,7 +699,9 @@ def _import_csv_contacts(text: str) -> Dict:
     # mistaking those contact values for column names.
     legacy_email = headers[1] if len(headers) > 1 else ""
     legacy_phone = headers[2] if len(headers) > 2 else ""
-    phone_number = any(char.isdigit() for char in legacy_phone) and re.fullmatch(r"[+()\d\s.-]+", legacy_phone)
+    # Phone values may include extension labels; supported header aliases do
+    # not contain digits, so formatting must not restrict this data signal.
+    phone_number = any(char.isdigit() for char in legacy_phone)
     if "@" in legacy_email or phone_number:
         has_header = False
 
