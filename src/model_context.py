@@ -46,7 +46,7 @@ def _is_private_ip_literal(host: str) -> bool:
 
 
 def _configured_endpoint(url: str):
-    """Find an enabled registration for this exact API origin and base path."""
+    """Find an unambiguous registration for this exact API origin/base path."""
     if "core.database" not in sys.modules:
         return None
     try:
@@ -56,9 +56,24 @@ def _configured_endpoint(url: str):
         db = SessionLocal()
         try:
             rows = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
+            matched = None
+            configuration = None
             for ep in rows:
-                if same_endpoint_base(url, getattr(ep, "base_url", "") or ""):
-                    return ep
+                if not same_endpoint_base(url, getattr(ep, "base_url", "") or ""):
+                    continue
+                candidate = (
+                    (getattr(ep, "endpoint_kind", None) or "auto").strip().lower(),
+                    getattr(ep, "api_key", None) or None,
+                    getattr(ep, "provider_auth_id", None) or None,
+                    getattr(ep, "owner", None) or None,
+                )
+                # A URL alone cannot choose between different credentials or
+                # owners. Equivalent aliases are safe; conflicting rows must
+                # fall back to an unauthenticated probe instead of row order.
+                if matched is not None and candidate != configuration:
+                    return None
+                matched, configuration = ep, candidate
+            return matched
         finally:
             db.close()
     except Exception:

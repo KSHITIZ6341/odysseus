@@ -445,6 +445,46 @@ def test_context_probe_matches_normalized_origin_and_base(monkeypatch):
     assert requests[0].headers["Authorization"] == "Bearer probe-test-key"
 
 
+@pytest.mark.parametrize("second", [
+    {"api_key": "different-registration-key"},
+    {"provider_auth_id": "account-session"},
+    {"owner": "another-owner"},
+    {"endpoint_kind": "proxy"},
+])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_context_probe_does_not_guess_between_conflicting_registrations(monkeypatch, second, reverse):
+    base = "http://127.0.0.1:8080/tenant/v1"
+    rows = [_endpoint_row(base), _endpoint_row(base, **second)]
+    _install_endpoint_db(monkeypatch, rows[::-1] if reverse else rows)
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(401)
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        monkeypatch.setattr(model_context.httpx, "get", client.get)
+        assert model_context._get_context_probe(base, base + "/models").status_code == 401
+
+    assert "Authorization" not in requests[0].headers
+
+
+def test_context_probe_keeps_auth_for_equivalent_registration_aliases(monkeypatch):
+    base = "http://127.0.0.1:8080/tenant/v1"
+    _install_endpoint_db(monkeypatch, [_endpoint_row(base), _endpoint_row(base + "/")])
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json={"data": []})
+
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        monkeypatch.setattr(model_context.httpx, "get", client.get)
+        assert model_context._get_context_probe(base, base + "/models").status_code == 200
+
+    assert requests[0].headers["Authorization"] == "Bearer probe-test-key"
+
+
 def test_context_probes_do_not_follow_redirects(monkeypatch):
     base = "http://127.0.0.1:8080/tenant/v1"
     _install_endpoint_db(monkeypatch, [_endpoint_row(base)])
