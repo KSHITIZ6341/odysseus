@@ -694,6 +694,14 @@ def _import_csv_contacts(text: str) -> Dict:
     known = {label for labels in aliases.values() for label in labels}
     headers = [cell.strip().lower() for cell in rows[0]]
     has_header = any(cell in known for cell in headers)
+    # A contact's name can itself be an alias such as "Phone" or "Mail".
+    # Recognize data in the documented headerless email/phone positions before
+    # mistaking those contact values for column names.
+    legacy_email = headers[1] if len(headers) > 1 else ""
+    legacy_phone = headers[2] if len(headers) > 2 else ""
+    phone_number = any(char.isdigit() for char in legacy_phone) and re.fullmatch(r"[+()\d\s.-]+", legacy_phone)
+    if "@" in legacy_email or phone_number:
+        has_header = False
 
     def values(cell):
         if not cell:

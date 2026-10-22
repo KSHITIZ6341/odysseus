@@ -68,6 +68,17 @@ def test_legacy_csv_still_imports(local_store, text):
     assert (row["name"], row["emails"], row["phones"]) == ("Casey", ["casey@example.test"], ["111"])
 
 
+@pytest.mark.parametrize("name,email", [("Phone", "phone@example.test"), ("Mail", "mail@example.test"), ("Name", "")])
+def test_headerless_csv_name_matching_header_keeps_all_rows(local_store, name, email):
+    text = f"{name},{email},+61 (2) 1234-5678\nCasey,casey@example.test,222\n"
+    assert contacts._import_csv_contacts(text) == {"imported": 2, "failed": 0, "total": 2}
+    rows = contacts._load_local_contacts()
+    assert [(row["name"], row["emails"], row["phones"]) for row in rows] == [
+        (name, [email] if email else [], ["+61 (2) 1234-5678"]),
+        ("Casey", ["casey@example.test"], ["222"]),
+    ]
+
+
 def test_csv_rejects_malformed_list_instead_of_losing_data(local_store):
     out = io.StringIO()
     writer = csv.writer(out)
