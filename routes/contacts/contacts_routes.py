@@ -762,10 +762,13 @@ def _contacts_to_csv(contacts: List[Dict]) -> str:
     """One row per contact; JSON arrays preserve list boundaries and punctuation."""
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(["uid", "name", "emails", "phones", "address"])
+    # Retain the original leading columns for existing CSV consumers.
+    writer.writerow(["name", "email", "phone", "uid", "emails", "phones", "address"])
     for c in contacts:
         writer.writerow([
-            c.get("uid") or "", c.get("name") or "",
+            c.get("name") or "",
+            (c.get("emails") or [""])[0], (c.get("phones") or [""])[0],
+            c.get("uid") or "",
             json.dumps(c.get("emails") or [], ensure_ascii=False),
             json.dumps(c.get("phones") or [], ensure_ascii=False),
             c.get("address") or "",

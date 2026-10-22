@@ -28,6 +28,17 @@ def test_vcf_export_preserves_postal_address():
     assert contacts._parse_vcards(contacts._contacts_to_vcf([original])) == [original]
 
 
+def test_csv_export_retains_original_columns_for_existing_readers():
+    exported = contacts._contacts_to_csv([{
+        "uid": "legacy", "name": "Casey", "emails": ["casey@example.test", "work@example.test"],
+        "phones": ["111", "222"], "address": "42 Fixture Street",
+    }])
+    reader = csv.DictReader(io.StringIO(exported))
+    assert reader.fieldnames[:3] == ["name", "email", "phone"]
+    row = next(reader)
+    assert (row["name"], row["email"], row["phone"]) == ("Casey", "casey@example.test", "111")
+
+
 @pytest.mark.parametrize("original", [
     [{"uid": "one", "name": "Casey", "emails": ["home@example.test"], "phones": ["111", "222"], "address": "42 Fixture Street"}],
     [{"uid": "two", "name": "Casey", "emails": ["home@example.test", "work@example.test"], "phones": ["111"], "address": "Unit 4; Level 2"}],
